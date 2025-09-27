@@ -1,0 +1,14 @@
+{
+  "name": "mathsec",
+  "version": "1.0.0",
+  "description": "Математические основы защиты информации и информационной безопасности",
+  "main": "index.js",
+  "repository": "https://github.com/yamadharma/course-directory-student-template.git",
+  "author": "Galina Leginkikh <galina.leginkikh@gmail.com>",
+  "license": "CC-BY-4.0",
+    "config": {
+	"commitizen": {
+	    "path": "cz-conventional-changelog"
+	}
+    }
+}
