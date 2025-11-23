@@ -1,22 +1,15 @@
 ---
-## Front matter
-title: "Отчет по лабораторной работе №2"
-subtitle: "Шифры перестановки"
+title: "Отчет по лабораторной работе №3"
+subtitle: "Задача управления оборудованием. Решение задачи итерационным методом. Решение задачи методом линейного программирования."
 author: "Легиньких Галина Андреевна"
-
-## Generic otions
 lang: ru-RU
 toc-title: "Содержание"
-## Pdf output format
-toc: true # Table of contents
+toc: true
 toc-depth: 2
-lof: true # List of figures
-lot: true # List of tables
 fontsize: 12pt
 linestretch: 1.5
 papersize: a4
 documentclass: scrreprt
-## I18n polyglossia
 polyglossia-lang:
   name: russian
   options:
@@ -24,10 +17,8 @@ polyglossia-lang:
   - babelshorthands=true
 polyglossia-otherlangs:
   name: english
-## I18n babel
 babel-lang: russian
 babel-otherlangs: english
-## Fonts
 mainfont: PT Serif
 romanfont: PT Serif
 sansfont: PT Sans
@@ -36,7 +27,6 @@ mainfontoptions: Ligatures=TeX
 romanfontoptions: Ligatures=TeX
 sansfontoptions: Ligatures=TeX,Scale=MatchLowercase
 monofontoptions: Scale=MatchLowercase,Scale=0.9
-## Biblatex
 biblatex: true
 biblio-style: "gost-numeric"
 biblatexoptions:
@@ -46,189 +36,194 @@ biblatexoptions:
   - language=auto
   - autolang=other*
   - citestyle=gost-numeric
-## Pandoc-crossref LaTeX customization
 figureTitle: "Рис."
 tableTitle: "Таблица"
 listingTitle: "Листинг"
-lofTitle: "Список иллюстраций"
-lotTitle: "Список таблиц"
-lolTitle: "Листинги"
-## Misc options
 indent: true
 header-includes:
   - \usepackage{indentfirst}
-  - \usepackage{float} # keep figures where there are in the text
-  - \floatplacement{figure}{H} # keep figures where there are in the text
+  - \usepackage{float}
+  - \floatplacement{figure}{H}
+  - \usepackage[top=2cm, bottom=2cm, left=2cm, right=1.5cm]{geometry}
 ---
 
-# Цель работы
+# Задача управления оборудованием относительно критерия средних потерь
 
-Целью данной работы является изучение алгоритмов шифрования перестановки,
-принцип его работы, реализация на Julia.
+## Исходные данные
 
-# Выполнение лабораторной работы
+**Параметры системы:**
 
-## Маршрутное шифрование
+- Вероятности отказов:  
+  $p_1 = 0.2$ (нормальный режим), $p_2 = 0.5$ (усиленный режим)
 
-Реализация:
+- Вероятности ремонта:  
+  $q_1 = 0.4$ (своими силами), $q_2 = 0.9$ (специалисты)
 
-```julia
-function route_encrypt(message, key, rows, cols)
-        message = filter(!isspace, message)
-        matrix = fill('_', rows, cols)
-        index = 1
-        new_message = ""
-        for i = 1:rows
-                for j = 1:cols
-                        if index != rows * cols
-                                matrix[i, j] = message[index]
-                                index += 1
-                        end
-                end
-        end
-        for j in sort(collect(key))
-                for i = 1:rows
-                        new_message *= (matrix[i, (findfirst(j, key))])
-                end
-        end
-        return new_message
-end
+- Доходы от эксплуатации:  
+  $r_1 = 2$ (нормальный режим), $r_2 = 6$ (усиленный режим)
 
-message = "this is a test message!"
-rows, cols = 4, 5
-key = "water"
-println(route_encrypt(message, key, rows, cols))
-```
+- Затраты на ремонт:  
+  $c_1 = 3$ (своими силами), $c_2 = 5$ (специалисты)
 
-Выполнение:
+## Решение итерационным методом
 
-```
-PS D:\mathsec\labs\lab2\code> julia Маршрутное_шифрование.jl
-hamgses!iss_iteetsta
+### Шаг 1: Начальная политика
 
-PS D:\mathsec\labs\lab2\code> julia Маршрутное_шифрование.jl
-emhrietgeretgertittdmaidbenne_
-```
+Выбираем начальную политику: $f_0 = (u_1^2, u_2^1)$
 
-## Шифрование с помощью решеток
+### Шаг 2: Вычисление относительной оценки
 
-Реализация:
+Полагая $v_0(1) = 0$, найдем относительную оценку $v_0(2)$:
 
-```julia
-function rails_encrypt(text, key, k)
-        grid = fill(" ", 2 * k, 2 * k)
-        matrix = fill(" ", k, k)
-        index = 1
-        new_message = ""
-        text = replace(text, " " => "")
-        for i in 1:k
-                for j in 1:k
-                        grid[i, j] = string(index)
-                        matrix[i, j] = string(index)
-                        index += 1
-                end
-        end
-        for i = 1:(size(grid)[1])
-                for j = (size(grid)[1]):-1:1
-                        if grid[i, j] == " "
-                                matrix = rotr90(matrix)
-                                grid[(i+k-1):-1:i, j:-1:(j-k+1)] = matrix[k:-1:1, k:-1:1]
-                        end
-                end
-        end
+$$
+\begin{aligned}
+v_0(2) &= \frac{l(2, u_2^1) - l(1, u_1^2)}{1 - (p_{22}(u_2^1) - p_{12}(u_1^2))} \\
+&= \frac{-3 - 6}{1 - (0.6 - 0.5)} = \frac{-9}{1 - 0.1} = \frac{-9}{0.9} = -10
+\end{aligned}
+$$
 
-        index = 1
-        arr = Vector{String}()
+### Шаг 3: Процедура улучшения политики
 
-        for r in text
-                checker = false
-                for i = 1:(size(grid)[1])
-                        for j = 1:(size(grid)[2])
-                                if grid[i, j] == string(index) && checker == false
-                                        if ((string(i + 1, " ", j) ∉ arr) && (string(i - 1, " ", j) ∉ arr) && (string(i, " ", j - 1) ∉ arr) && (string(i, " ", j + 1) ∉ arr))
-                                                grid[i, j] = string(r)
-                                                push!(arr, string(i, " ", j))
-                                                checker = true
-                                        end
-                                end
-                        end
-                        if checker == true
-                                index += 1
-                                if index > k^2
-                                        index = 1
-                                        empty!(arr)
-                                end
-                                break
-                        end
-                end
-        end
+**В состоянии 1:**
+$$
+\begin{aligned}
+u^*(1) &= \max[2 - 0.2 \cdot 10; 6 - 0.5 \cdot 10] \\
+&= \max[2 - 2; 6 - 5] = \max[0; 1] = 1
+\end{aligned}
+$$
 
-        for j in sort(collect(key))
-                for i = 1:2k
-                        new_message *= (grid[i, (findfirst(j, key))])
-                        if tryparse(Float64, string(last(new_message))) != nothing
-                                new_message = replace(new_message, last(new_message) => ' ')
-                        end
-                end
-        end
-        return new_message
+**В состоянии 2:**
+$$
+\begin{aligned}
+u^*(2) &= \max[-3 - 0.4 \cdot 10; -5 - 0.1 \cdot 10] \\
+&= \max[-3 - 4; -5 - 1] = \max[-7; -6] = -6
+\end{aligned}
+$$
 
-end
+**Новая политика:** $f_1 = \arg\max u^*(x) = (u_1^2, u_2^2)$
 
-text = "Hello, New World!"
-key = "keys"
-k = 2
-println(rails_encrypt(text, key, k))
-```
+### Шаг 4: Повторение процедуры
 
-Выполнение:
+Полагая $v_1(1) = 0$, найдем:
 
-```
-PS D:\mathsec\labs\lab2\code> julia Решетки.jl
-,lr!HNdwoeolle W
+$$
+\begin{aligned}
+v_1(2) &= \frac{l(2, u_2^2) - l(1, u_1^2)}{1 - (p_{22}(u_2^2) - p_{12}(u_1^2))} \\
+&= \frac{-5 - 6}{1 - (0.1 - 0.5)} = \frac{-11}{1 - (-0.4)} = \frac{-11}{1.4} = -7.8571
+\end{aligned}
+$$
 
-PS D:\mathsec\labs\lab2\code> julia Решетки.jl
-s      d    P@r   !w
-```
+**В состоянии 1:**
+$$
+\begin{aligned}
+u^*(1) &= \max[2 - 0.2 \cdot 7.8571; 6 - 0.5 \cdot 7.8571] \\
+&= \max[2 - 1.5714; 6 - 3.9286] = \max[0.4286; 2.0714] = 2.0714
+\end{aligned}
+$$
 
-## Таблица Вижинера
+**В состоянии 2:**
+$$
+\begin{aligned}
+u^*(2) &= \max[-3 - 0.4 \cdot 7.8571; -5 - 0.1 \cdot 7.8571] \\
+&= \max[-3 - 3.1429; -5 - 0.7857] = \max[-6.1429; -5.7857] = -5.7857
+\end{aligned}
+$$
 
-Реализация:
+**Политика:** $f_2 = \arg\max u^*(x) = (u_1^2, u_2^2) = f_1$
 
-```julia
-function vigenere_encrypt(text, key)
-        alphabet = 'a':'z'
-        output = ""
-        key_index = 1
+## Решение методом линейного программирования
 
-        for i in text
-                if isletter(i)
-                        offset = findfirst(isequal(key[key_index]), alphabet) - 1
-                        index = findfirst(isequal(i), alphabet) + offset
-                        index > 26 && (index -= 26)
-                        output *= alphabet[index]
-                        key_index += 1
-                        key_index > length(key) && (key_index = 1)
-                else
-                        output *= i
-                end
-        end
+### Постановка задачи
 
-        return output
-end
+**Целевая функция:**
+$$
+z = 2\xi_{1,1} + 6\xi_{1,2} - 3\xi_{2,1} - 5\xi_{2,2} \to \max
+$$
 
-text = "hello world"
-key = "key"
-println(vigenere_encrypt(text, key))
-```
+**Ограничения:**
+$$
+\begin{aligned}
+(1 - 0.8)\xi_{1,1} + (1 - 0.5)\xi_{1,2} - 0.4\xi_{2,1} - 0.9\xi_{2,2} &= 0 \\
+-0.2\xi_{1,1} - 0.5\xi_{1,2} + (1 - 0.6)\xi_{2,1} + (1 - 0.1)\xi_{2,2} &= 0 \\
+\xi_{1,1} + \xi_{1,2} + \xi_{2,1} + \xi_{2,2} &= 1 \\
+\xi_{1,1}, \xi_{1,2}, \xi_{2,1}, \xi_{2,2} &\geq 0
+\end{aligned}
+$$
 
-Выполнение:
+**Упрощенные ограничения:**
+$$
+\begin{aligned}
+0.2\xi_{1,1} + 0.5\xi_{1,2} - 0.4\xi_{2,1} - 0.9\xi_{2,2} &= 0 \\
+-0.2\xi_{1,1} - 0.5\xi_{1,2} + 0.4\xi_{2,1} + 0.9\xi_{2,2} &= 0 \\
+\xi_{1,1} + \xi_{1,2} + \xi_{2,1} + \xi_{2,2} &= 1
+\end{aligned}
+$$
 
-```
-PS D:\mathsec\labs\lab2\code> julia Виженера.jl
-rijvs uyvjn
-```
+### Решение симплекс-методом
 
-# Выводы
+#### Таблица 1: Начальная симплекс-таблица
 
-В данной лабораторной работе были изучены три шифра перестановки, все алгоритмы были реализованы на языке Julia и работают корректно.
+| | $\xi_{1,1}$ | $\xi_{1,2}$ | $\xi_{2,1}$ | $\xi_{2,2}$ | $z$ |
+|---|---|---|---|---|---|
+| | -0.2 | -0.5 | 0.4 | 0.9 | 0 |
+| | 1 | 1 | 1 | 1 | 1 |
+
+#### Таблица 2: Первая итерация (базис $\xi_{1,1}$)
+
+| Базис | $\xi_{1,1}$ | $\xi_{1,2}$ | $\xi_{2,1}$ | $\xi_{2,2}$ | $z$ |
+|---|---|---|---|---|---|
+| $\xi_{1,1}$ | 1 | 2.5 | -2 | -4.5 | 0 |
+| | 0 | -1.5 | 3 | 5.5 | 1 |
+
+#### Таблица 3: Вторая итерация (базис $\xi_{2,1}$)
+
+| Базис | $\xi_{1,1}$ | $\xi_{1,2}$ | $\xi_{2,1}$ | $\xi_{2,2}$ | $z$ |
+|---|---|---|---|---|---|
+| $\xi_{1,1}$ | 1 | 0.8333 | 0 | 1.1667 | 0.6667 |
+| $\xi_{2,1}$ | 0 | -0.5 | 1 | 1.8333 | 0.3333 |
+
+#### Таблица 4: Проверка оптимальности
+
+| Базис | $\xi_{1,1}$ | $\xi_{1,2}$ | $\xi_{2,1}$ | $\xi_{2,2}$ | $z$ |
+|---|---|---|---|---|---|
+| $\xi_{1,1}$ | 1 | 0.8333 | 0 | 1.1667 | 0.6667 |
+| $\xi_{2,1}$ | 0 | -0.5 | 1 | 1.8333 | 0.3333 |
+| $\Delta_i$ | 0 | -1.1667 | 0 | -1.8333 | 3.6667 |
+
+#### Таблица 5: Третья итерация (базис $\xi_{1,2}$)
+
+| Базис | $\xi_{1,1}$ | $\xi_{1,2}$ | $\xi_{2,1}$ | $\xi_{2,2}$ | $z$ |
+|---|---|---|---|---|---|
+| $\xi_{1,2}$ | 1.2 | 1 | 0 | 1.4 | 0.8 |
+| $\xi_{2,1}$ | 0.6 | 0 | 1 | 2.5 | 0.7333 |
+| $\Delta_i$ | 1.4 | 0 | 0 | -0.2 | 4.5333 |
+
+#### Таблица 6: Четвертая итерация (базис $\xi_{2,2}$)
+
+| Базис | $\xi_{1,1}$ | $\xi_{1,2}$ | $\xi_{2,1}$ | $\xi_{2,2}$ | $z$ |
+|---|---|---|---|---|---|
+| $\xi_{1,2}$ | 1.08 | 1 | -0.56 | 0 | 0.6267 |
+| $\xi_{2,2}$ | 0.24 | 0 | 0.4 | 1 | 0.2933 |
+| $\Delta_i$ | 1.44 | 0 | 0.08 | 0 | 4.5733 |
+
+## Результат
+
+### Оптимальное решение
+$$
+\xi = (0; 0.6267; 0; 0.2933)
+$$
+
+### Значение целевой функции
+$$
+z = 6 \cdot 0.6267 + (-5) \cdot 0.2933 = 3.7602 - 1.4665 = 2.2937
+$$
+
+### Оптимальная стратегия
+- В состоянии 1: $\xi_{1,2} > 0$ => $u_1^2$ (усиленный режим)
+- В состоянии 2: $\xi_{2,2} > 0$ => $u_2^2$ (ремонт специалистами)
+
+**Оптимальная стратегия:** $f^{(2,2)} = (u_1^2, u_2^2)$
+
+## Вывод
+
+Оба метода - итерационный и линейного программирования - дали одинаковый результат: оптимальная стратегия состоит в использовании усиленного режима эксплуатации исправного оборудования и ремонта неисправного оборудования с привлечением специалистов.
