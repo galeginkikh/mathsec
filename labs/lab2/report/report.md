@@ -1,234 +1,161 @@
----
-## Front matter
-title: "Отчет по лабораторной работе №2"
-subtitle: "Шифры перестановки"
-author: "Легиньких Галина Андреевна"
+# Доклад: «Об оптимальных динамических приоритетах в однолинейных системах массового обслуживания»
 
-## Generic otions
-lang: ru-RU
-toc-title: "Содержание"
-## Pdf output format
-toc: true # Table of contents
-toc-depth: 2
-lof: true # List of figures
-lot: true # List of tables
-fontsize: 12pt
-linestretch: 1.5
-papersize: a4
-documentclass: scrreprt
-## I18n polyglossia
-polyglossia-lang:
-  name: russian
-  options:
-  - spelling=modern
-  - babelshorthands=true
-polyglossia-otherlangs:
-  name: english
-## I18n babel
-babel-lang: russian
-babel-otherlangs: english
-## Fonts
-mainfont: PT Serif
-romanfont: PT Serif
-sansfont: PT Sans
-monofont: PT Mono
-mainfontoptions: Ligatures=TeX
-romanfontoptions: Ligatures=TeX
-sansfontoptions: Ligatures=TeX,Scale=MatchLowercase
-monofontoptions: Scale=MatchLowercase,Scale=0.9
-## Biblatex
-biblatex: true
-biblio-style: "gost-numeric"
-biblatexoptions:
-  - parentracker=true
-  - backend=biber
-  - hyperref=auto
-  - language=auto
-  - autolang=other*
-  - citestyle=gost-numeric
-## Pandoc-crossref LaTeX customization
-figureTitle: "Рис."
-tableTitle: "Таблица"
-listingTitle: "Листинг"
-lofTitle: "Список иллюстраций"
-lotTitle: "Список таблиц"
-lolTitle: "Листинги"
-## Misc options
-indent: true
-header-includes:
-  - \usepackage{indentfirst}
-  - \usepackage{float} # keep figures where there are in the text
-  - \floatplacement{figure}{H} # keep figures where there are in the text
+**Авторы:** В. В. Рыков, Э. Е. Лемберг  
+**Год:** 1967  
+**Журнал:** Техническая кибернетика, № 1  
+
 ---
 
-# Цель работы
+## 1. Постановка задачи
 
-Целью данной работы является изучение алгоритмов шифрования перестановки,
-принцип его работы, реализация на Julia.
+### 1.1. Исходная система
 
-# Выполнение лабораторной работы
+**Характеристики системы:**
+- Один обслуживающий прибор
+- \( N \) входящих потоков разнотипных требований
+- Интенсивности потоков: \( \lambda_i \) (\( i = 1, N \)), причём \( \sum_{i=1}^N \lambda_i = 1 \)
+- Время обслуживания требования \( i \)-го типа: \( B_i(x) \) (произвольное распределение)
+- Штрафы: \( a_i \) — потери за единицу времени ожидания требования \( i \)-го типа
 
-## Маршрутное шифрование
+### 1.2. Управление системой
 
-Реализация:
+**Цель управления:** минимизировать средние потери в единицу времени
 
-```julia
-function route_encrypt(message, key, rows, cols)
-        message = filter(!isspace, message)
-        matrix = fill('_', rows, cols)
-        index = 1
-        new_message = ""
-        for i = 1:rows
-                for j = 1:cols
-                        if index != rows * cols
-                                matrix[i, j] = message[index]
-                                index += 1
-                        end
-                end
-        end
-        for j in sort(collect(key))
-                for i = 1:rows
-                        new_message *= (matrix[i, (findfirst(j, key))])
-                end
-        end
-        return new_message
-end
+\[
+L = \sum_{i=1}^N a_i \lambda_i v_i
+\]
 
-message = "this is a test message!"
-rows, cols = 4, 5
-key = "water"
-println(route_encrypt(message, key, rows, cols))
-```
+**Объяснение формулы:**
+- \( v_i \) — среднее время ожидания требования \( i \)-го типа в очереди
+- \( \lambda_i v_i \) — среднее число требований \( i \)-го типа в очереди (по формуле Литтла)
+- \( a_i \lambda_i v_i \) — средние потери от ожидания требований \( i \)-го типа
+- Сумма по всем типам даёт **общие средние потери системы**
 
-Выполнение:
+---
 
-```
-PS D:\mathsec\labs\lab2\code> julia Маршрутное_шифрование.jl
-hamgses!iss_iteetsta
+## 2. Ключевые понятия
 
-PS D:\mathsec\labs\lab2\code> julia Маршрутное_шифрование.jl
-emhrietgeretgertittdmaidbenne_
-```
+### 2.1. Пространство состояний
 
-## Шифрование с помощью решеток
+\[
+x = (x_1, x_2, \dots, x_N), \quad x_i \geq 0
+\]
 
-Реализация:
+где \( x_i \) — число требований \( i \)-го типа в системе (в очереди).
 
-```julia
-function rails_encrypt(text, key, k)
-        grid = fill(" ", 2 * k, 2 * k)
-        matrix = fill(" ", k, k)
-        index = 1
-        new_message = ""
-        text = replace(text, " " => "")
-        for i in 1:k
-                for j in 1:k
-                        grid[i, j] = string(index)
-                        matrix[i, j] = string(index)
-                        index += 1
-                end
-        end
-        for i = 1:(size(grid)[1])
-                for j = (size(grid)[1]):-1:1
-                        if grid[i, j] == " "
-                                matrix = rotr90(matrix)
-                                grid[(i+k-1):-1:i, j:-1:(j-k+1)] = matrix[k:-1:1, k:-1:1]
-                        end
-                end
-        end
+**Пример:** Для \( N = 2 \), состояние \( (3, 2) \) означает:
+- 3 требования первого типа в очереди
+- 2 требования второго типа в очереди
 
-        index = 1
-        arr = Vector{String}()
+### 2.2. Типы приоритетов
 
-        for r in text
-                checker = false
-                for i = 1:(size(grid)[1])
-                        for j = 1:(size(grid)[2])
-                                if grid[i, j] == string(index) && checker == false
-                                        if ((string(i + 1, " ", j) ∉ arr) && (string(i - 1, " ", j) ∉ arr) && (string(i, " ", j - 1) ∉ arr) && (string(i, " ", j + 1) ∉ arr))
-                                                grid[i, j] = string(r)
-                                                push!(arr, string(i, " ", j))
-                                                checker = true
-                                        end
-                                end
-                        end
-                        if checker == true
-                                index += 1
-                                if index > k^2
-                                        index = 1
-                                        empty!(arr)
-                                end
-                                break
-                        end
-                end
-        end
+| Тип приоритета | Определение | Особенности | Пример |
+|----------------|-------------|-------------|--------|
+| **Статические (обычные)** | Фиксированное правило выбора | Не зависит от состояния очереди | Всегда обслуживать сначала тип 1, затем тип 2 |
+| **Динамические** | Правило выбора зависит от текущего состояния системы \( x \) | Определяется разбиением пространства состояний | Если в очереди много требований типа 1, обслуживать их первыми |
 
-        for j in sort(collect(key))
-                for i = 1:2k
-                        new_message *= (grid[i, (findfirst(j, key))])
-                        if tryparse(Float64, string(last(new_message))) != nothing
-                                new_message = replace(new_message, last(new_message) => ' ')
-                        end
-                end
-        end
-        return new_message
+---
 
-end
+## 3. Случай \( N = 2 \) (подробный анализ)
 
-text = "Hello, New World!"
-key = "keys"
-k = 2
-println(rails_encrypt(text, key, k))
-```
+### 3.1. Вложенная цепь Маркова
 
-Выполнение:
+Рассматриваются моменты окончания обслуживания как моменты принятия решения.
 
-```
-PS D:\mathsec\labs\lab2\code> julia Решетки.jl
-,lr!HNdwoeolle W
+**Обозначения и их смысл:**
+- \( q_i \) — число требований \( i \)-го типа в очереди в момент \( t \)
+- \( \xi_{ji} \) — число требований \( i \)-го типа, поступивших **за время обслуживания** требования \( j \)-го типа
+- \( \delta_{ji} \) — символ Кронекера (1 если \( j = i \), иначе 0)
 
-PS D:\mathsec\labs\lab2\code> julia Решетки.jl
-s      d    P@r   !w
-```
+**Рекуррентные соотношения:**
+\[
+\begin{cases}
+q_i' = \xi_{ji} & \text{с вероятностью } \lambda_j, \text{ если } t \text{ — 0-момент} \\
+q_i' = q_i + \xi_{ji} - \delta_{ji} & \text{если } t \text{ — } j\text{-момент}
+\end{cases}
+\]
 
-## Таблица Вижинера
+**Объяснение:**
+- Если прибор был свободен (0-момент), то новая очередь состоит только из поступивших за время обслуживания
+- Если прибор был занят обслуживанием типа \( j \), то:
+  - Добавляются поступившие требования \( \xi_{ji} \)
+  - Вычитается обслуженное требование \( \delta_{ji} \)
 
-Реализация:
+### 3.2. Производящая функция и стационарное уравнение
 
-```julia
-function vigenere_encrypt(text, key)
-        alphabet = 'a':'z'
-        output = ""
-        key_index = 1
+\[
+G_i(z_1, z_2) = M(z_1^{q_1} z_2^{q_2} \mid E_i)
+\]
 
-        for i in text
-                if isletter(i)
-                        offset = findfirst(isequal(key[key_index]), alphabet) - 1
-                        index = findfirst(isequal(i), alphabet) + offset
-                        index > 26 && (index -= 26)
-                        output *= alphabet[index]
-                        key_index += 1
-                        key_index > length(key) && (key_index = 1)
-                else
-                        output *= i
-                end
-        end
+**Объяснение:** 
+- \( G_i(z_1, z_2) \) — производящая функция распределения длин очередей **при условии**, что система находится в области \( E_i \)
+- Это условная характеристическая функция распределения \( (q_1, q_2) \)
 
-        return output
-end
+**Стационарное уравнение:**
+\[
+\pi_0 \left[1 - \lambda_1 b_1(u) - \lambda_2 b_2(u)\right] + \pi_1 G_1 \left(1 - \frac{b_1(u)}{z_1}\right) + \pi_2 G_2 \left(1 - \frac{b_2(u)}{z_2}\right) = 0
+\]
 
-text = "hello world"
-key = "key"
-println(vigenere_encrypt(text, key))
-```
+где:
+- \( u = \lambda_1(1 - z_1) + \lambda_2(1 - z_2) \) — комбинированный параметр
+- \( b_i(u) = \int_0^\infty e^{-ux} dB_i(x) \) — преобразование Лапласа–Стилтьеса распределения времени обслуживания
 
-Выполнение:
+### 3.3. Вероятности состояний
 
-```
-PS D:\mathsec\labs\lab2\code> julia Виженера.jl
-rijvs uyvjn
-```
+\[
+\pi_0 = 1 - R, \quad \pi_i = \lambda_i R, \quad R = \rho_1 + \rho_2, \quad \rho_i = \lambda_i b_i
+\]
 
-# Выводы
+**Объяснение:**
+- \( \rho_i = \lambda_i b_i \) — **загрузка** прибора потоком \( i \)-го типа (коэффициент использования)
+- \( R = \sum \rho_i \) — **общая загрузка** системы
+- \( \pi_0 = 1 - R \) — вероятность застать систему свободной (стационарная)
+- \( \pi_i = \lambda_i R \) — вероятность застать систему в области \( E_i \)
 
-В данной лабораторной работе были изучены три шифра перестановки, все алгоритмы были реализованы на языке Julia и работают корректно.
+### 3.4. Условные средние \( g_{ij} = M(q_j \mid E_i) \)
+
+**Система уравнений:**
+\[
+\begin{cases}
+(1 - \rho_1) g_{11} - \rho_2 g_{21} = \lambda_1 C + (1 - \rho_1) \\
+-\rho_1 g_{12} + (1 - \rho_2) g_{22} = \lambda_2 C + (1 - \rho_2)
+\end{cases}
+\]
+
+где:
+\[
+C = \frac{b^{(2)}}{2R}, \quad b^{(2)} = \lambda_1 b_1^{(2)} + \lambda_2 b_2^{(2)}, \quad b_i^{(2)} = \int_0^\infty x^2 \, dB_i(x)
+\]
+
+**Объяснение:**
+- \( g_{ij} = M(q_j \mid E_i) \) — **среднее число требований типа \( j \) в очереди**, при условии, что система в области \( E_i \)
+- \( b_i^{(2)} \) — **второй момент** времени обслуживания типа \( i \)
+- \( C \) — нормированный второй момент, характеризующий **вариабельность** времени обслуживания
+
+### 3.5. Среднее время ожидания
+
+\[
+v_i = R \frac{g_{ii} - 1}{\lambda_i}
+\]
+
+**Объяснение:**
+- Формула следует из **принципа PASTA** (Poisson Arrivals See Time Averages)
+- \( g_{ii} - 1 \) — среднее число требований типа \( i \), остающихся в очереди после ухода одного требования этого типа
+- Домножение на \( R \) даёт безусловное среднее время ожидания
+
+**Важное ограничение:**
+\[
+\rho_1 v_1 + \rho_2 v_2 = \frac{CR^2}{1 - R}
+\]
+
+**Смысл:** Сумма произведений загрузки на среднее время ожидания **постоянна** для любых разбиений.
+
+---
+
+## 4. Практический пример
+
+### 4.1. Исходные данные
+
+Рассмотрим больницу с одним врачом и двумя типами пациентов:
+
+**Параметры:**
